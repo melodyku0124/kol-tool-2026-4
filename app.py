@@ -3,61 +3,63 @@ import pandas as pd
 import plotly.express as px
 
 # 1. 網頁基礎設定
-st.set_page_config(page_title="KOL 內建數據 PK 系統", layout="wide")
+st.set_page_config(page_title="KOL 數據決策中心", layout="wide")
 
-st.title("⚔️ KOL 自動數據 PK 系統 (4.2 內建版)")
-st.write("輸入帳號，系統將自動檢索內建資料庫。")
+st.title("📊 KOL 自動化比較儀表板")
+st.write("只需輸入帳號，系統將自動比對內建數據庫，無需手動輸入數值。")
 st.markdown("---")
 
-# 2. 這是你的「專屬資料庫」
-# 未來你可以把查到的資料傳給我，我幫你加進這裡
+# 2. 你的專屬數據庫 (這裡是你目前觀察的清單)
+# 你可以隨時傳新的數據給我，我幫你更新這段
 DATABASE = {
-    "salomon_tw": {"粉絲數": 45000, "女性比例%": 40, "互動率%": 3.8},
-    "ski_expert_jp": {"粉絲數": 12000, "女性比例%": 35, "互動率%": 6.2},
-    "marketing_queen": {"粉絲數": 89000, "女性比例%": 85, "互動率%": 2.1},
-    "running_girl_emily": {"粉絲數": 52000, "女性比例%": 92, "互動率%": 5.5},
-    "tokyo_lifestyle": {"粉絲數": 31000, "女性比例%": 60, "互動率%": 4.5}
+    "salomon_tw": {"粉絲數": 45000, "女性比例%": 40, "互動率%": 3.8, "類別": "品牌官方"},
+    "ski_expert_jp": {"粉絲數": 12000, "女性比例%": 35, "互動率%": 6.2, "類別": "滑雪教練"},
+    "marketing_queen": {"粉絲數": 89000, "女性比例%": 85, "互動率%": 2.1, "類別": "行銷/科技"},
+    "running_girl_emily": {"粉絲數": 52000, "女性比例%": 92, "互動率%": 5.5, "類別": "路跑運動員"},
+    "tokyo_lifestyle": {"粉絲數": 31000, "女性比例%": 60, "互動率%": 4.5, "類別": "生活旅遊"}
 }
 
-# --- 輸入區 ---
-st.subheader("第一步：檢索 KOL")
+# --- 檢索區 ---
+st.subheader("🔍 輸入要比較的帳號")
 col1, col2, col3 = st.columns(3)
-kol_list = []
+selected_kols = []
 
+# 建立三個純文字輸入框
 for i, col in enumerate([col1, col2, col3], 1):
     with col:
-        st.markdown(f"### 選手 {i}")
-        name = st.text_input(f"輸入帳號", key=f"n{i}", help="試試看輸入 salomon_tw 或 running_girl_emily")
-        
-        # 自動檢查資料庫
-        if name in DATABASE:
-            st.success("✅ 已找到內建數據！")
-            data = DATABASE[name]
-            fols = st.number_input("粉絲數", value=data["粉絲數"], key=f"f{i}")
-            fem = st.slider("女性比例 (%)", 0, 100, data["女性比例%"], key=f"p{i}")
-            eng = st.number_input("互動率 (%)", value=data["互動率%"], key=f"e{i}")
-        else:
-            if name:
-                st.warning("⚠️ 尚未建立數據，請手動填入：")
-            fols = st.number_input("粉絲數", min_value=0, value=10000, key=f"f{i}")
-            fem = st.slider("女性比例 (%)", 0, 100, 50, key=f"p{i}")
-            eng = st.number_input("互動率 (%)", value=3.0, key=f"e{i}")
+        name = st.text_input(f"KOL 帳號 {i}", key=f"user_input_{i}", placeholder="輸入帳號...")
         
         if name:
-            kol_list.append({"KOL帳號": name, "粉絲數": fols, "女性比例%": fem, "互動率%": eng})
+            name_clean = name.lower().strip() # 自動處理大小寫與空格
+            if name_clean in DATABASE:
+                data = DATABASE[name_clean]
+                st.success(f"✅ {name_clean} 數據已載入")
+                # 僅顯示數據，不提供輸入框
+                st.write(f"📌 **類別：** {data['類別']}")
+                st.write(f"👥 **粉絲：** {data['粉絲數']:,}")
+                st.write(f"👩 **女性：** {data['女性比例%']}%")
+                st.write(f"📈 **互動：** {data['互動率%']}%")
+                
+                # 存入列表準備畫圖
+                data_for_df = data.copy()
+                data_for_df["KOL帳號"] = name_clean
+                selected_kols.append(data_for_df)
+            else:
+                st.error("❌ 資料庫中無此帳號")
+                st.info("請聯絡技術長更新數據庫。")
 
-# --- 圖表分析區 ---
-if len(kol_list) >= 2:
+# --- 自動繪圖區 ---
+if len(selected_kols) >= 1:
     st.markdown("---")
-    st.subheader("第二步：數據 PK 分析")
-    df = pd.DataFrame(kol_list)
+    df = pd.DataFrame(selected_kols)
     
-    st.dataframe(df, use_container_width=True)
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        st.plotly_chart(px.bar(df, x="KOL帳號", y="粉絲數", color="KOL帳號", title="規模比較"), use_container_width=True)
-    with c2:
-        st.plotly_chart(px.scatter(df, x="女性比例%", y="互動率%", size="粉絲數", text="KOL帳號", title="精準度 vs 互動率"), use_container_width=True)
-else:
-    st.info("💡 提示：輸入 `salomon_tw` 和 `running_girl_emily` 看看自動帶入的效果！")
+    # 如果有兩個人以上，就顯示 PK 圖表
+    if len(selected_kols) >= 2:
+        st.subheader("⚔️ PK 數據分析")
+        c1, c2 = st.columns(2)
+        with c1:
+            st.plotly_chart(px.bar(df, x="KOL帳號", y="粉絲數", color="KOL帳號", title="粉絲規模對比"), use_container_width=True)
+        with c2:
+            st.plotly_chart(px.bar(df, x="KOL帳號", y="互動率%", color="KOL帳號", title="互動表現對比"), use_container_width=True)
+    else:
+        st.info("再輸入一個帳號即可開啟 PK 圖表。")
