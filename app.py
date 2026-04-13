@@ -2,9 +2,10 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+# 1. 網站基礎設定
 st.set_page_config(page_title="KOL 數據決策中心", layout="wide")
 
-st.title("🚀 KOL 受眾數據決策中心 (3.0版)")
+st.title("🚀 KOL 受眾數據決策中心 (3.1版)")
 st.write("目前居住地：日本 | 目標市場：台灣運動品牌")
 st.markdown("---")
 
@@ -26,22 +27,28 @@ else:
     }
     df = pd.DataFrame(data)
 
+# 確保欄位名稱正確無誤
+country_col = "主要受眾國家"
+
 # 篩選控制器
 f_min = st.sidebar.slider("目標女性受眾 > (%)", 0, 100, 50)
-countries = st.sidebar.multiselect("目標市場", df["主要受眾國家"].unique(), default=df["主要眾國家"].unique() if "主要受眾國家" in df else None)
+
+# 這裡修正了剛才的錯字
+available_countries = df[country_col].unique()
+countries = st.sidebar.multiselect("目標市場", options=available_countries, default=available_countries)
 
 # 執行過濾
-mask = (df["女性比例%"] >= f_min) & (df["主要受眾國家"].isin(countries))
+mask = (df["女性比例%"] >= f_min) & (df[country_col].isin(countries))
 res = df[mask]
 
 # --- 主畫面：新增快速查詢區 ---
 st.subheader("🔗 KOL 快速調查員")
 col_input, col_link = st.columns([3, 1])
 with col_input:
-    ig_handle = st.text_input("輸入 IG 帳號 (例如: shiba_inu)", "")
+    ig_handle = st.text_input("輸入 IG 帳號 (不需加 @)", placeholder="例如: salomon_tw")
 with col_link:
     if ig_handle:
-        st.markdown(f"[點我開啟 IG 個人檔案](https://www.instagram.com/{ig_handle}/)")
+        st.markdown(f"<br><a href='https://www.instagram.com/{ig_handle}/' target='_blank'><button style='background-color:#FF4B4B; color:white; border:none; padding:10px 20px; border-radius:5px; cursor:pointer;'>開啟個人檔案</button></a>", unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -54,10 +61,10 @@ if not res.empty:
     st.subheader("📊 受眾組成分析")
     c1, c2 = st.columns(2)
     with c1:
-        fig1 = px.bar(res, x="KOL帳號", y="粉絲數", color="女性比例%", title="規模與性別比")
-        st.plotly_chart(fig1)
+        fig1 = px.bar(res, x="KOL帳號", y="粉絲數", color="女性比例%", title="規模與性別比", color_continuous_scale="Purples")
+        st.plotly_chart(fig1, use_container_width=True)
     with c2:
         fig2 = px.scatter(res, x="女性比例%", y="互動率%", size="粉絲數", hover_name="KOL帳號", title="受眾精準度 vs 互動率")
-        st.plotly_chart(fig2)
+        st.plotly_chart(fig2, use_container_width=True)
 
-st.info("💡 專業建議：對於運動品牌（如 Salomon），建議找女性比例 > 60% 且互動率高於 3% 的 KOL。")
+st.info("💡 專業建議：對於運動品牌，建議找女性比例 > 60% 且互動率高於 3% 的 KOL。")
