@@ -2,57 +2,62 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-# 1. 網站基礎設定
-st.set_page_config(page_title="KOL 粉絲篩選網", layout="wide")
-st.title("🌐 KOL 受眾精準篩選器")
-st.write("這是專屬你的 KOL 篩選工具。目前的數據包含性別與主要國家分析。")
+st.set_page_config(page_title="KOL 數據決策中心", layout="wide")
 
-# 2. 核心數據 (未來我們可以改成讀取 Excel)
-# 這裡我先放幾筆範例資料，讓你感受效果
-data = {
-    "KOL 名稱": ["運動女孩 Emily", "滑雪教練 Ken", "行銷專家 Mark", "東京生活 Aoi", "路跑甜心 Mini"],
-    "粉絲數": [52000, 15000, 89000, 31000, 12000],
-    "女性粉絲比例(%)": [85, 30, 60, 55, 90],
-    "主要國家": ["台灣", "日本", "台灣", "日本", "台灣"],
-    "互動率(%)": [5.5, 4.2, 2.1, 4.8, 6.5]
-}
-df = pd.DataFrame(data)
+st.title("🚀 KOL 受眾數據決策中心 (3.0版)")
+st.write("目前居住地：日本 | 目標市場：台灣運動品牌")
+st.markdown("---")
 
-# 3. 網站側邊欄：你的控制器
-st.sidebar.header("🔍 篩選條件")
+# --- 側邊欄：進階篩選 ---
+st.sidebar.header("🔍 受眾精密篩選")
+uploaded_file = st.sidebar.file_uploader("上傳 KOL 名單 (CSV)", type=["csv"])
 
-# 篩選 1：性別
-f_ratio = st.sidebar.slider("最低女性粉絲佔比 (%)", 0, 100, 50)
+# 初始數據
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+else:
+    data = {
+        "KOL帳號": ["Emily_Run", "Ski_Ken", "Marketing_Mark", "Tokyo_Aoi", "Mini_RoadRun", "Salomon_Fan"],
+        "粉絲數": [52000, 15000, 89000, 31000, 12000, 45000],
+        "女性比例%": [85, 30, 60, 55, 90, 40],
+        "主要受眾國家": ["台灣", "日本", "台灣", "日本", "台灣", "台灣"],
+        "類型": ["運動", "滑雪", "行銷", "旅遊", "運動", "品牌活動"],
+        "互動率%": [5.5, 4.2, 2.1, 4.8, 6.5, 3.8]
+    }
+    df = pd.DataFrame(data)
 
-# 篩選 2：國家
-selected_country = st.sidebar.multiselect(
-    "選擇受眾所在國家", 
-    options=df["主要國家"].unique(), 
-    default=df["主要國家"].unique()
-)
+# 篩選控制器
+f_min = st.sidebar.slider("目標女性受眾 > (%)", 0, 100, 50)
+countries = st.sidebar.multiselect("目標市場", df["主要受眾國家"].unique(), default=df["主要眾國家"].unique() if "主要受眾國家" in df else None)
 
-# 執行篩選
-filtered_df = df[
-    (df["女性粉絲比例(%)"] >= f_ratio) & 
-    (df["主要國家"].isin(selected_country))
-]
+# 執行過濾
+mask = (df["女性比例%"] >= f_min) & (df["主要受眾國家"].isin(countries))
+res = df[mask]
 
-# 4. 網頁顯示內容
-col1, col2 = st.columns([2, 1])
+# --- 主畫面：新增快速查詢區 ---
+st.subheader("🔗 KOL 快速調查員")
+col_input, col_link = st.columns([3, 1])
+with col_input:
+    ig_handle = st.text_input("輸入 IG 帳號 (例如: shiba_inu)", "")
+with col_link:
+    if ig_handle:
+        st.markdown(f"[點我開啟 IG 個人檔案](https://www.instagram.com/{ig_handle}/)")
 
-with col1:
-    st.subheader("📋 符合條件的名單")
-    st.dataframe(filtered_df, use_container_width=True)
+st.markdown("---")
 
-with col2:
-    st.subheader("📊 數據統計")
-    st.metric("搜尋到人數", len(filtered_df))
-    if not filtered_df.empty:
-        st.metric("平均互動率", f"{filtered_df['互動率(%)'].mean():.1f}%")
+# 顯示表格
+st.subheader("📋 篩選名單")
+st.dataframe(res, use_container_width=True)
 
-# 視覺化圖表
-st.markdown("### 粉絲分佈視覺化")
-fig = px.pie(filtered_df, values='粉絲數', names='KOL 名稱', hole=.3, title="篩選名單佔比")
-st.plotly_chart(fig, use_container_width=True)
+# 統計分析
+if not res.empty:
+    st.subheader("📊 受眾組成分析")
+    c1, c2 = st.columns(2)
+    with c1:
+        fig1 = px.bar(res, x="KOL帳號", y="粉絲數", color="女性比例%", title="規模與性別比")
+        st.plotly_chart(fig1)
+    with c2:
+        fig2 = px.scatter(res, x="女性比例%", y="互動率%", size="粉絲數", hover_name="KOL帳號", title="受眾精準度 vs 互動率")
+        st.plotly_chart(fig2)
 
-st.info("💡 提示：你可以點擊側邊欄調整數值，網站會即時更新結果。")
+st.info("💡 專業建議：對於運動品牌（如 Salomon），建議找女性比例 > 60% 且互動率高於 3% 的 KOL。")
